@@ -1,7 +1,7 @@
 from django.shortcuts import get_object_or_404
 from rest_framework import generics, permissions
 
-from .serializers import TodoSerializer, TodoToggleCompleteSerializer
+from .serializers import TodoSerializer, TodoToggleCompleteSerializer, validate_image_file, validate_mobile_number
 from todo.models import Todo
 from django.contrib.auth import get_user_model
 from rest_framework.decorators import api_view
@@ -14,31 +14,47 @@ from rest_framework import status
 from django.middleware.csrf import get_token
 # for just display 
 from rest_framework.renderers import JSONRenderer
+from rest_framework.authentication import TokenAuthentication
+
 from .models import CustomUser
 from .serializers import CustomUserSerializer
 from rest_framework.views import APIView
 from rest_framework import permissions
+from rest_framework.decorators import api_view, permission_classes
+from django.contrib.auth.tokens import default_token_generator
 
 
-User = get_user_model()
 
-class CustomUserAPIView(generics.RetrieveUpdateAPIView):
-    serializer_class = CustomUserSerializer
+from rest_framework import permissions
+from rest_framework.authentication import TokenAuthentication
+from rest_framework.response import Response
+from rest_framework.views import APIView
+from .models import CustomUser
+from .serializers import CustomUserSerializer
+
+class CustomUserAPIView(APIView):
+    authentication_classes = [TokenAuthentication]
     permission_classes = [permissions.IsAuthenticated]
 
-    def get_object(self):
-        return get_object_or_404(CustomUser, user=self.request.user)
+    def get(self, request):
+        try:
+            customuser = CustomUser.objects.get(user=request.user)
+            serializer = CustomUserSerializer(customuser)
+            return Response({"response": serializer.data})
+        except CustomUser.DoesNotExist:
+            return Response({"err": "User not found"})
 
-    def put(self, request, *args, **kwargs):
-        custom_user = self.get_object()
-        serializer = self.serializer_class(custom_user, data=request.data, partial=True)
-        if serializer.is_valid():
-            custom_user.save_profile_pic(request)
-            serializer.save()
-            return Response(serializer.data)
-        else:
-            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-        
+    def put(self, request):
+        try:
+            customuser = CustomUser.objects.get(user=request.user)
+            serializer = CustomUserSerializer(customuser, data=request.data, partial=True)
+            if serializer.is_valid():
+                serializer.save()
+                return Response({"response": serializer.data})
+            else:
+                return Response({"err": serializer.errors})
+        except CustomUser.DoesNotExist:
+            return Response({"err": "User not found"})
 
 class TodoList(generics.ListAPIView):
     # ListAPIView requires two mandatory attributes, serializer_class and
@@ -104,6 +120,8 @@ def signup(request):
     data = JSONParser().parse(request)
     username = data.get('username')
     password = data.get('password')
+    mobile = data.get('mobile')
+    pic = data.get('pic')
 
     if not username or not password:
         # رسالة خطأ عندما يكون اسم المستخدم أو كلمة المرور غير موجودة
@@ -117,7 +135,7 @@ def signup(request):
         response.accepted_renderer = JSONRenderer()
 
         return response
-
+    
     if len(username) < 3:
         # رسالة خطأ عندما يكون اسم المستخدم أقل من 3 أحرف
         # Error message when the username is less than 3 characters
@@ -162,7 +180,12 @@ def signup(request):
     try:
         user = UserModel.objects.create_user(username=username, password=password)
         token, _ = Token.objects.get_or_create(user=user)
-
+        create_profile = CustomUser.objects.create(
+            user= user,
+            mobile = validate_mobile_number(mobile),
+            profile_pic = pic
+        )
+        create_profile.save
         response_data = {'token': str(token)}
         response_data['csrf_token'] = get_token(request)
 
@@ -341,7 +364,6 @@ from django.utils.http import urlsafe_base64_encode, urlsafe_base64_decode
 #             return Response({'success': 'Password has been reset'}, status=status.HTTP_200_OK)
 
 #         return Response({'error': 'Invalid reset link'}, status=status.HTTP_400_BAD_REQUEST)
-from rest_framework.authentication import TokenAuthentication
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.views import APIView
 
