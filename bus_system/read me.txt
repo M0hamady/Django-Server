@@ -1,0 +1,74 @@
+Location
+    name: CharField that stores the name of the location
+    latitude: DecimalField that stores the latitude of the location
+    longitude: DecimalField that stores the longitude of the location
+BusCompany
+    name: CharField that stores the name of the bus company
+    email: EmailField that stores the email address of the bus company
+    phone_number: CharField that stores the phone number of the bus company
+    address: CharField that stores the address of the bus company
+    is_active: BooleanField that indicates whether the bus company is currently active or not
+Station
+    name: CharField that stores the name of the station
+    address: CharField that stores the address of the station
+    location: ForeignKey that points to a Location object
+    buses: ManyToManyField that points to Bus objects and represents the buses that stop at the station
+SalonType
+    name: CharField that stores the name of the salon type
+    description: CharField that stores a description of the salon type
+ChairType
+    name: CharField that stores the name of the chair type
+    description: CharField that stores a description of the chair type
+Bus
+    name: CharField that stores the name of the bus
+    start_station: ForeignKey that points to a Station object and represents the starting station of the bus
+    passing_stations: ManyToManyField that points to Station objects and represents the stations that the bus passes through
+    destination: ForeignKey that points to a Station object and represents the destination station of the bus
+    salon_type: ForeignKey that points to a SalonType object and represents the type of the bus's salon
+    number_of_chairs: PositiveIntegerField that stores the number of chairs in the bus
+    price_per_chair: DecimalField that stores the price per chair in the bus
+    chairs: ManyToManyField that points to Chair objects and represents the chairs in the bus
+    vehicle_number: CharField that stores the vehicle number of the bus
+    vehicle_type: CharField that stores the type of the vehicle
+Chair
+    bus: ForeignKey that points to a Bus object and represents the bus that the chair belongs to
+    number: PositiveIntegerField that stores the number of the chair
+    status: CharField that stores the status of the chair (Reserved, Unreserved, Pending)
+    chair_type: ForeignKey that points to a ChairType object and represents the type of the chair
+Trip
+    start_time: DateTimeField that stores the start time of the trip
+    arrival_time: DateTimeField that stores the arrival time of the trip
+    bus: ForeignKey that points to a Bus object and represents the bus used for the trip
+    start_location: ForeignKey that points to a Location object and represents the starting location of the trip
+    passing_locations: ManyToManyField that points to Location objects and represents the locations that the trip passes through
+    status: CharField that stores the status of the trip (Active, Pending)
+Reservation
+    chair: ForeignKey that points to a Chair object and represents the reserved chair
+    user: ForeignKey that points to a User object and represents the user who made the reservation
+    reserved_at: DateTimeField that stores the timestamp of the reservation
+    status: CharField that stores the status of the reservation (Reserved, Cancelled, Expired)
+Payment
+    reservation: OneToOneField that points to a Reservation object and represents the reservation for which the payment was made
+    value: DecimalField that stores the value of the payment
+    status: CharField that stores the status of the payment (Pending, Done)
+    The code also includes some methods in the models:
+
+Location.__str__(): returns the name of the location
+BusCompany.__str__(): returns the name of the bus company
+Station.__str__(): returns the name of the station
+SalonType.__str__(): returns the name of the salon type
+ChairType.__str__(): returns the name of the chair type
+Bus.__str__(): returns the name of the bus
+Bus.pending_chairs(): returns the chairs in the bus that have a status of 'Pending'
+Bus.reserved_chairs(): returns the chairs in the bus that have a status of 'Reserved'
+Bus.unreserved_chairs(): returns the chairs in the bus that have a status of 'Unreserved'
+Chair.__str__(): returns a string representation of the chair object
+Chair.is_reserved(): returns True if the chair isreserved (i.e., if there is a reservation with a status of 'Reserved' for the chair), and False otherwise
+Chair.payment_status(): returns the payment status of the latest reservation for the chair (i.e., the status of the payment associated with the latest reservation)
+Chair.payment_value(): returns the payment value of the latest reservation for the chair (i.e., the value of the payment associated with the latest reservation)
+Trip.__str__(): returns a string representation of the trip object
+Trip.get_buses(): returns a list of buses that are used for the trip, including the starting bus and any passing buses that stop at the destination station
+Trip.update_status(): updates the status of the trip based on the current time
+Reservation.__str__(): returns a string representation of the reservation object
+Reservation.can_cancel(): returns True if the reservation can be cancelled (i.e., if the reservation status is 'Reserved' and it was made less than 4 hours ago), and False otherwise
+Payment.__str__(): returns a string representation of the payment object

@@ -44,7 +44,8 @@ INSTALLED_APPS = [
     'rest_framework.authtoken',
     'corsheaders',
     'services',
-    'django.core.mail'
+    'django.core.mail',
+    'bus_system',
 ]
 
 MIDDLEWARE = [
@@ -156,3 +157,8 @@ EMAIL_PORT = 587
 EMAIL_USE_TLS = True
 EMAIL_HOST_USER = 'urfitness96@gmail.com' # Replace with your email address
 EMAIL_HOST_PASSWORD = 'Mohammedy@258147369' # Replace with your email password or app-specific password
+
+BASE_URL = os.environ.get('BASE_URL', 'http://localhost:8000')
+
+MEDIA_URL = '/media/'
+MEDIA_ROOT = os.path.join(BASE_DIR, 'media/')

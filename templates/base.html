@@ -1,26 +1,306 @@
 <!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8">
+	<title>3D Page</title>
+	<link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+	<style>
+		/* Set the height of the body to full screen */
+		body {
+			height: 100vh;
+			overflow: hidden;
+		}
+		
+		/* Set the height of the sections to full screen */
+		section {
+			height: 100vh;
+			position: relative;
+		}
+		
+		/* Set the height of the content within the sections to center it vertically */
+		.section-content {
+			height: 100%;
+			display: flex;
+			align-items: center;
+			justify-content: center;
+		}
+		
+		/* Set the z-index and background color of the nav */
+		.navbar {
+			z-index: 2;
+			background-color: #333;
+		}
+		
+		/* Set the z-index and background color of the footer */
+		.footer {
+			position: absolute;
+			bottom: 0;
+			left: 0;
+			right: 0;
+			z-index: 2;
+			background-color: #333;
+			padding: 20px;
+		}
+		
+		/* Set the styles for the 3D card */
+		.card-3d {
+			position: absolute;
+			top: 0;
+			left: 0;
+			width: 33.33%;
+			height: 100%;
+			transform-style: preserve-3d;
+			transition: transform 0.5s ease;
+			cursor: pointer;
+			margin: 0;
+		}
+		
+		/* Set the styles for the 3D card front */
+		.card-3d .card-front,
+		.card-3d .card-back {
+			position: absolute;
+			top: 0;
+			left: 0;
+			width: 100%;
+			height: 100%;
+			backface-visibility: hidden;
+			border-radius: 10px;
+			background-color: #fff;
+			box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+			padding: 20px;
+			display: flex;
+			flex-direction: column;
+			align-items: center;
+			justify-content: center;
+			text-align: center;
+		}
+		
+		/* Set the styles for the 3D card front */
+		.card-3d .card-front {
+			z-index: 2;
+		}
+		
+		/* Set the styles for the 3D card back */
+		.card-3d .card-back {
+			transform: rotateY(180deg);
+		}
+		
+		/* Set the styles for the card title */
+		.card-title {
+			font-size: 2rem;
+			margin-bottom: 20px;
+		}
+		
+		/* Set the styles for the card description */
+		.card-description {
+			font-size: 1.5rem;
+			margin-bottom: 20px;
+		}
+		
+		/* Set the styles for the mouse scroll animation */
+		.mouse-scroll {
+			position: absolute;
+			bottom: 20px;
+			left: 50%;
+			transform: translateX(-50%);
+			display: flex;
+			flex-direction: column;
+			align-items: center;
+			justify-content: center;
+			animation: mouse-scroll 2s infinite;
+			cursor: pointer;
+		}
+		
+		.mouse-scroll .mouse {
+			width: 18px;
+			height: 30px;
+			border: 2px solid #fff;
+			border-radius: 15px;
+			position: relative;
+			animation: mouse-scroll-wheel 2s infinite;
+		}
+		
+		.mouse-scroll .mouse::before {
+			content: "";
+			display: block;
+			background-color: #fff;
+			border-radius: 50%;
+			width: 6px;
+			height: 6px;
+			position: absolute;
+			top: 5px;
+			left: 50%;
+			transform: translateX(-50%);
+			animation: mouse-scroll-wheel 2s infinite;
+		}
+		
+		.mouse-scroll .scroll {
+			font-size: 1.5rem;
+			color: #fff;
+			margin-top: 10px;
+			animation: mouse-scroll-text 2s infinite;
+		}
+		
+		@keyframes mouse-scroll {
+			0% {
+				transform: translateY(0);
+			}
+			100% {
+				transform: translateY(10px);
+			}
+		}
+		
+		@keyframes mouse-scroll-wheel {
+			0Here's the modified HTML and JavaScript code that implements the welcome animation and section transitions:
+
+HTML:
+```html
+<!DOCTYPE html>
 <html>
   <head>
-    <meta charset="utf-8">
-    <title>{% block title %}My Website{% endblock %}</title>
-    {% load static %}
-    <link rel="stylesheet" type="text/css" href="{% static 'accounts/css/style.css' %}">
+    <meta charset="UTF-8">
+    <title>Welcome Animation and Section Transitions</title>
+    <style>
+      /* Add styles for the welcome animation */
+      .welcome {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        background-color: #333;
+        color: #fff;
+        z-index: 9999;
+        animation: fade-out 2s ease-in-out forwards;
+      }
+      /* Add styles for the sections */
+      section {
+        height: 100vh;
+        display: none;
+        position: relative;
+      }
+      .section-content {
+        height: 100%;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        flex-direction: column;
+      }
+      /* Add styles for the active section */
+      section.active {
+        display: block;
+      }
+      /* Add styles for the navigation */
+      nav {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        background-color: #333;
+        z-index: 9998;
+        padding: 1rem;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+      nav a {
+        color: #fff;
+        text-decoration: none;
+        margin-left: 1rem;
+      }
+      /* Add styles for the footer */
+      footer {
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        background-color: #333;
+        z-index: 9998;
+        padding: 1rem;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        color: #fff;
+      }
+      /* Add styles for the welcome text */
+      .welcome-text {
+        font-size: 4rem;
+        text-align: center;
+      }
+      /* Add styles for section headings and descriptions */
+      h1, h2 {
+        font-size: 3rem;
+        margin-bottom: 1rem;
+      }
+      p {
+        font-size: 1.5rem;
+        margin-bottom: 2rem;
+        text-align: center;
+      }
+      /* Add styles for the section buttons */
+      .section-button {
+        background-color: #fff;
+        color: #333;
+        padding: 1rem 2rem;
+        border-radius: 1rem;
+        font-size: 1.5rem;
+        text-decoration: none;
+        margin-top: 2rem;
+      }
+      /* Add animation for fading out welcome text */
+      @keyframes fade-out {
+        0% {
+          opacity: 1;
+        }
+        100% {
+          opacity: 0;
+          display: none;
+        }
+      }
+    </style>
   </head>
   <body>
-    <header>
-      <nav>
-        <ul>
-          <li><a href="{% url 'home' %}">Home</a></li>
-          <li><a href="{% url 'about' %}">About</a></li>
-          <li><a href="{% url 'contact' %}">Contact</a></li>
-        </ul>
-      </nav>
-    </header>
-    <main>
-      {% block content %}{% endblock %}
-    </main>
+    <!-- Add the welcome animation -->
+    <div class="welcome">
+      <h1 class="welcome-text">Welcome to Digital Ocean!</h1>
+    </div>
+    <!-- Add the navigation -->
+    <nav>
+      <a href="#section1">Section 1</a>
+      <a href="#section2">Section 2</a>
+      <a href="#section3">Section 3</a>
+    </nav>
+    <!-- Add the sections -->
+    <section id="section1" class="active">
+      <div class="section-content">
+        <h1>Section 1</h1>
+        <p>This is the first section of the page.</p>
+        <a href="#section2" class="section-button">Go to Section 2</a>
+      </div>
+    </section>
+    <section id="section2">
+      <div class="section-content">
+        <h2>Section 2</h2>
+        <p>This is the second section of the page.</p>
+        <a href="#section3" class="section-button">Go to Section 3</a>
+      </div>
+    </section>
+    <section id="section3">
+      <div class="section-content">
+        <h2>Section 3</h2>
+        <p>This is the third section of the page.</p>
+        <a href="#" class="section-button">Back to Top</a>
+      </div>
+    </section>
+    <!-- Add the footer -->
     <footer>
-      <p>&copy; {{ date|date:'Y' }} My Website</p>
+      <p>&copy; 2023 Digital Ocean</p>
     </footer>
-  </body>
-</html>
+    <!-- Add the JavaScript code to handle section transitions -->
+    <script>
+      // Wait for the page to load
+      window.onload = function() {
+        // Get all the sections and the

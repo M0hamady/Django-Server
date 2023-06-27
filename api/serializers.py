@@ -25,19 +25,34 @@ def validate_mobile_number(value):
     return value
 
 
+
 class CustomUserSerializer(serializers.ModelSerializer):
+    username = serializers.CharField(source='user.username', read_only=True)
+    is_active = serializers.BooleanField(source='user.is_active', read_only=True)
+    last_login = serializers.DateTimeField(source='user.last_login', read_only=True)
+    profile_pic = serializers.ImageField(max_length=None, use_url=True, required=False)
+
     class Meta:
         model = CustomUser
-        fields = ['mobile', 'profile_pic']
+        fields = ['mobile', 'profile_pic', 'username', 'is_active', 'last_login']
 
     def validate_mobile(self, value):
         # validate mobile number format
-        
         return validate_mobile_number(value)
 
     def validate_profile_pic(self, value):
         # validate profile pic file size
         return validate_image_file(value)
+
+    def to_representation(self, instance):
+        representation = super().to_representation(instance)
+        request = self.context.get('request')
+        if representation['profile_pic']:
+            if request is not None:
+                representation['profile_pic'] = request.build_absolute_uri(representation['profile_pic'])
+            else:
+                representation['profile_pic'] = f"{settings.BASE_URL}{representation['profile_pic']}"
+        return representation
 
 class TodoSerializer(serializers.ModelSerializer):
     created = serializers.ReadOnlyField()

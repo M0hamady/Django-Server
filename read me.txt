@@ -1,0 +1,136 @@
+Code Ocean
+Code Ocean is a web application built with Django that allows users to manage and organize their tasks, profiles, buses and bus APIs. The application provides a set of features that enable users to create, update, delete and view data related to these entities.
+
+Features
+Tasks
+The tasks section allows users to manage their tasks. You can create a new task, update an existing task, delete a task, and view details of a task. The tasks are displayed in a list view, and you can filter and search through the list of tasks.
+
+Profiles
+The profiles section allows users to manage their profiles. You can create a new profile, update an existing profile, delete a profile, and view details of a profile. The profiles are displayed in a list view, and you can filter and search through the list of profiles.
+
+Buses
+The buses section allows users to manage their buses. You can create a new bus, update an existing bus, delete a bus, and view details of a bus. The buses are displayed in a list view, and you can filter and search through the list of buses.
+
+Bus APIs
+The bus APIs section allows users to manage their bus APIs. You can create a new bus API, update an existing bus API, delete a bus API, and view details of a bus API. The bus APIs are displayed in a list view, and you can filter and search through the list of bus APIs.
+
+Installation
+To install Code Ocean, follow these steps:
+
+Clone the repository to your local machine.
+Install the required dependencies listed in requirements.txt. You can do this by running the command: pip install -r requirements.txt from the root directory of the project.
+Create a new Postgres database and update the DATABASES settings in settings.py to point to your Postgres database.
+Run the command python manage.py migrate to create the necessary tables in your database.
+Start the development server by running the command python manage.py runserver.
+Usage
+Once the server is running, you can access the web application by navigating to http://localhost:8000 in your web browser. From there, you can use the navigation menu to access the different sections of the application and manage your tasks, profiles, buses and bus APIs.
+
+Contributing
+If you'd like to contribute to this project, please fork the repository, make your changes, and submit a pull request. We welcome contributions of all kinds, including bug fixes, new features, and documentation improvements.
+
+License
+This project is licensed under the MIT License. See the LICENSE file for more information.
+
+
+
+
+code_ocean
+├── code_ocean
+│   ├── __init__.py
+│   ├── settings.py
+│   ├── urls.py
+│   └── wsgi.py
+├── profiles
+│   ├── __init__.py
+│   ├── admin.py
+│   ├── apps.py
+│   ├── forms.py
+│   ├── models.py
+│   ├── tests.py
+│   ├── urls.py
+│   └── views.py
+├── bus_api
+│   ├── __init__.py
+│   ├── admin.py
+│   ├── apps.py
+│   ├── models.py
+│   ├── serializers.py
+│   ├── tests.py
+│   ├── urls.py
+│   └── views.py
+├── todo
+│   ├── __init__.py
+│   ├── admin.py
+│   ├── apps.py
+│   ├── forms.py
+│   ├── models.py
+│   ├── tests.py
+│   ├── urls.py
+│   └── views.py
+├── bus_system
+│   ├── __init__.py
+│   ├── admin.py
+│   ├── apps.py
+│   ├── forms.py
+│   ├── models.py
+│   ├── tests.py
+│   ├── urls.py
+│   └── views.py
+├── media
+├── services
+│   ├── __init__.py
+│   ├── admin.py
+│   ├── apps.py
+│   ├── models.py
+│   ├── tests.py
+│   ├── urls.py
+│   └── views.py
+├── templates
+│   ├── bus_system
+│   │   ├── bus_list.html
+│   │   ├── bus_detail.html
+│   │   ├── bus_create.html
+│   │   ├── bus_update.html
+│   │   └── bus_delete.html
+│   ├── profiles
+│   │   ├── profile_list.html
+│   │   ├── profile_detail.html
+│   │   ├── profile_create.html
+│   │   ├── profile_update.html
+│   │   └── profile_delete.html
+│   ├── bus_api
+│   │   ├── bus_api_list.html
+│   │   ├── bus_api_detail.html
+│   │   ├── bus_api_create.html
+│   │   ├── bus_api_update.html
+│   │   └── bus_api_delete.html
+│   ├── todo
+│   │   ├── task_list.html
+│   │   ├── task_detail.html
+│   │   ├── task_create.html
+│   │   ├── task_update.html
+│   │   └── task_delete.html
+│   └── utilities
+│       └── base.html
+├── static
+│   ├── bus_system
+│   │   ├── css
+│   │   ├── js
+│   │   └── img
+│   ├── profiles
+│   │   ├── css
+│   │   ├── js
+│   │   └── img
+│   ├── bus_api
+│   │   ├── css
+│   │   ├── js
+│   │   └── img
+│   ├── todo
+│   │   ├── css
+│   │   ├── js
+│   │   └── img
+│   └── utilities
+│       ├── css
+│       ├── js
+│       └── img
+└── manage.py
