@@ -26,7 +26,7 @@ SECRET_KEY = 'django-insecure-rwn&)5knzd%ueo0csn3g6lgkkorus!312srq#&f77oqb3mcseh
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = ['.vercel.app','127.0.0.1','13.49.77.18','*','m0hamady.pythonanywhere.com']
+ALLOWED_HOSTS = ['.vercel.app','127.0.0.1','13.49.77.18','*','m0hamady.pythonanywhere.com','*']
 
 
 # Application definition
@@ -42,10 +42,16 @@ INSTALLED_APPS = [
     'api',
     'rest_framework',
     'rest_framework.authtoken',
+    'rest_auth',
     'corsheaders',
     'services',
     'django.core.mail',
     'bus_system',
+    'allauth',
+    'allauth.account',
+    'allauth.socialaccount',
+    'allauth.socialaccount.providers.google',
+    'allauth.socialaccount.providers.facebook',
 ]
 
 MIDDLEWARE = [
@@ -71,10 +77,43 @@ REST_FRAMEWORK = {
             }
 
 ROOT_URLCONF = 'main.urls'
+AUTHENTICATION_BACKENDS = [
+    'django.contrib.auth.backends.ModelBackend',
+    'allauth.account.auth_backends.AuthenticationBackend',
+]
 
+SITE_ID = 1
+
+
+ACCOUNT_EMAIL_REQUIRED = True
+ACCOUNT_EMAIL_VERIFICATION = 'mandatory'
+ACCOUNT_AUTHENTICATION_METHOD = 'username_email'
+
+SOCIALACCOUNT_PROVIDERS = {
+    'google': {
+        'SCOPE': ['profile', 'email'],
+        'AUTH_PARAMS': {'access_type': 'online'},
+        'APP': {
+            'client_id': '564690286733-lh6v0db40g6po0gi0jjtuup30savd1o3.apps.googleusercontent.com',
+            'secret': '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',
+            # 'key': ''
+        }
+    },
+    'facebook': {
+        'SCOPE': ['email'],
+        'AUTH_PARAMS': {'auth_type': 'reauthenticate'},
+        'METHOD': 'oauth2',
+        'APP': {
+            'client_id': 'YOUR_CLIENT_ID',
+            'secret': 'YOUR_SECRET_KEY',
+            'key': ''
+        }
+    }
+}
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
+        
         'DIRS': [BASE_DIR / 'templates'],
         'APP_DIRS': True,
         'OPTIONS': {
@@ -123,7 +162,10 @@ AUTH_PASSWORD_VALIDATORS = [
     },
 ]
 
-
+AUTHENTICATION_BACKENDS = [
+    'django.contrib.auth.backends.ModelBackend',
+    'allauth.account.auth_backends.AuthenticationBackend',
+]
 # Internationalization
 # https://docs.djangoproject.com/en/3.2/topics/i18n/
 

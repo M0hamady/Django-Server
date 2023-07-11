@@ -409,3 +409,21 @@ class ChangePasswordView(APIView):
         Token.objects.filter(user=user).delete()
 
         return Response({'success': 'Password has been changed','message': 'Congratulations.'}, status=status.HTTP_200_OK)
+from allauth.socialaccount.providers.google.views import GoogleOAuth2Adapter
+from allauth.socialaccount.providers.oauth2.client import OAuth2Client
+from rest_auth.registration.views import SocialLoginView, RegisterView
+
+class GoogleLogin(SocialLoginView):
+    adapter_class = GoogleOAuth2Adapter
+    client_class = OAuth2Client
+    
+class GoogleRegister(RegisterView):
+    adapter_class = GoogleOAuth2Adapter
+    client_class = OAuth2Client
+
+    def create(self, request, *args, **kwargs):
+        response = super().create(request, *args, **kwargs)
+        user = self.get_object()
+        # Add any additional fields you want to save for the user, such as profile picture
+        # ...
+        return response

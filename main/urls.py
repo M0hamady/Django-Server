@@ -17,12 +17,20 @@ from django.contrib import admin
 from django.urls import include, path
 from django.conf.urls.static import static
 from main import settings
+from django.contrib.auth.decorators import login_required
+from allauth.account.views import LogoutView
+
 
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('', include('api.urls'),),
     path('', include('services.urls'),),
     path('', include('bus_system.urls'),),
+    
+    # path('', include('googleauthentication.urls')),
+
+    path('accounts/', include('allauth.urls')),
+    path('accounts/logout/', login_required(LogoutView.as_view()), name='account_logout'),
     
 ]
 if settings.DEBUG:

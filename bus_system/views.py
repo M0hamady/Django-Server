@@ -1,13 +1,15 @@
 import datetime
-from django.shortcuts import render
-from rest_framework import generics
+from django.http import JsonResponse
+from django.shortcuts import get_object_or_404, redirect, render
+from rest_framework import generics,permissions, status
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from django.utils import timezone
-from .serializers import AvailableTripSerializer
-from rest_framework import status
+from django.db.models import Sum, F
+from main.settings import BASE_DIR
+from .serializers import AvailableTripSerializer, ChairSerializer, PaymentSerializer, ReservationSerializer
 
-from bus_system.models import Bus, Location, Station, Trip
+from bus_system.models import Bus, Chair, Location, Payment, Reservation, Station, Trip
 from .serializers import LocationSerializer, TripSerializer
 
 class LocationStationList(generics.ListAPIView):
@@ -80,7 +82,7 @@ class BusInTripAPI(APIView):
             return Response({'error': f'Trip with ID {trip_id} does not exist'}, status=status.HTTP_404_NOT_FOUND)
 
         try:
-            bus = trip.bus
+            bus = trip.buses_trip()
         except Bus.DoesNotExist:
             return Response({'error': f'Bus not found in trip with Uuid {trip_id}'}, status=status.HTTP_400_BAD_REQUEST)
 
@@ -89,17 +91,149 @@ class BusInTripAPI(APIView):
 
         bus_data = {
             'uuid': bus.uuid,
-            'available_seats': bus.unreserved_chairs,
-            'bus_seats': bus.number_of_chairs,
-            # 'bus_salon':bus.bus_salon,
-            # 'seating_capacity': bus.seating_capacity,
+            'bus_salon':bus.bus_salon.name,
+            # 'bus_seats': bus.number_of_chairs,
             # 'reserved_chairs_count': bus.reserved_chairs_count,
             # 'unreserved_chairs_count': bus.unreserved_chairs_count,
+            'bus_seats_details': bus.number_of_chairs,
+            'available_seats': bus.unreserved_chairs,
         }
         return Response(bus_data, status=status.HTTP_200_OK)
     
 
 
+from decimal import Decimal
 
+class ChairUpdateView(generics.UpdateAPIView):
+    queryset = Chair.objects.all()
+    lookup_field = 'uuid'
+    serializer_class = ChairSerializer
+    permission_classes = [permissions.IsAuthenticated, permissions.IsAdminUser]
+
+    def patch(self, request, *args, **kwargs):
+        chair_uuids = request.data.get('chair_uuids', [])
+        if not chair_uuids:
+            return Response({'message': 'Please provide UUIDs of the chairs to be reserved'})
+        total_cost = Decimal('0.00')
+        reservations = []
+        for chair_uuid in chair_uuids:
+            try:
+                chair = Chair.objects.get(uuid=chair_uuid)
+            except Chair.DoesNotExist:
+                return Response({'message': 'The chair with UUID {} does not exist.'.format(chair_uuid)})
+
+            if chair.status == 'reserved':
+                reservations.append({
+                    'chair_uuid': chair.uuid,
+                    "chair_num" :chair.number,
+                    "trip_bus" :f'{chair.bus_trip.trip.start_location}-{chair.bus_trip.trip.end_location}',
+                    "trip_date" :f'{chair.bus_trip.trip.start_date}',
+                    "bus_num" :f'{chair.bus_trip.vehicle_number}',
+                    'status': 'error',
+                    'message': 'The chair is already reserved.'
+                })
+            else:
+                serializer = self.get_serializer(chair, data={'status': 'reserved'}, partial=True)
+                serializer.is_valid(raise_exception=True)
+                serializer.save()
+
+                reservation = Reservation.objects.create(chair=chair, user=request.user)
+
+                payment_fee = Decimal('0.00')  # Replace with the actual payment fee calculation
+                payment = Payment.objects.create(reservation=reservation, value=reservation.chair.price_per_chair+reservation.payment_fee + reservation.company_commission)
+                total_cost += payment.value
+                reservations.append({
+                    'chair_uuid': chair.uuid,
+                    'status': 'success',
+                    "chair_num" :chair.number,
+                    "chair_bus" :f'{chair.bus_trip.trip.start_location}-{chair.bus_trip.trip.end_location}',
+                    "chair_date" :f'{chair.bus_trip.trip.start_date}',
+                    'reservation': ReservationSerializer(reservation).data,
+                    'payment':PaymentSerializer(payment).data
+                })
+        reservations.append({
+                'total_cost':total_cost
+            })
+        return Response({'reservations': reservations})
+    
+class UserPaymentsView(generics.ListAPIView):
+    serializer_class = PaymentSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request, *args, **kwargs):
+        user = self.request.user
+
+        # Get all the payments associated with the user's reservations
+        payments = Payment.objects.filter(reservation__user=user)
+
+        # Compute the total cost of all payments
+        total_cost = payments.aggregate(total=Sum('value'))['total'] or 0
+
+        # Serialize the payments queryset
+        serializer = PaymentSerializer(payments, many=True)
+
+        # Return the serialized data with the total cost
+        return Response({
+            'payment': serializer.data,
+            'total_cost': total_cost,
+        })
 def index(request):
+    print(BASE_DIR)
+
     return render(request, 'base.html')
+from django.views.decorators.csrf import csrf_exempt
+from rest_framework.decorators import api_view
+@csrf_exempt
+@api_view(['GET'])
+def check_reservation(request):
+    barcode = request.data.get('barcode')
+    if not barcode:
+        return JsonResponse({'error': 'Barcode not provided','message':"make sure that barcode in body and its value"}, status=400)
+    try:
+        reservation = Reservation.objects.get(uuid=barcode)
+        # Convert the reservation object to a dictionary
+        context = ReservationSerializer(reservation).data
+        return JsonResponse(context)
+    except Reservation.DoesNotExist:
+        return JsonResponse({'error': 'Reservation not found'}, status=404)
+
+
+
+from django.contrib import messages 
+from django.contrib.auth.models import User
+
+class CancelReservationAPIView(APIView):
+    def get(self, request,):
+        try:
+            # user = User.objects.get(username=request.user)
+            reservations = Reservation.objects.filter(user=request.user)
+            serializer = ReservationSerializer(reservations, many=True)
+            return Response(serializer.data)
+        except User.DoesNotExist:
+            return Response(status=status.HTTP_404_NOT_FOUND)
+    def post(self, request, format=None):
+        try:
+            reservation_uuid = request.data.get('reservation_uuid')
+
+            if not reservation_uuid:
+                message = 'Reservation UUID is required. Example request: {"reservation_uuid": "xxxx-xxxx-xxxx-xxxx"}'
+                return Response({'error': message}, status=status.HTTP_400_BAD_REQUEST)
+            reservation = Reservation.objects.get(uuid=reservation_uuid)
+
+            if not reservation:
+                message = f'Reservation with UUID {reservation_uuid} not found'
+                return Response({'error': message}, status=status.HTTP_404_NOT_FOUND)
+
+            can_cancel, reason = reservation.can_cancel()
+            if not can_cancel:
+                message = f'Reservation with UUID {reservation_uuid} cannot be cancelled: {reason}.'
+                return Response({'error': message}, status=status.HTTP_400_BAD_REQUEST)
+            reservation.status = 'Cancelled'
+            reservation.delete()
+
+            message = f'Reservation with UUID {reservation_uuid} has been cancelled'
+            return Response({'success': message}, status=status.HTTP_200_OK)
+
+        except TypeError:
+            message = 'Invalid request body. Please provide the reservation UUID in the request body in the following format: {"reservation_uuid": "xxxx-xxxx-xxxx-xxxx"}'
+            return Response({'error': message}, status=status.HTTP_400_BAD_REQUEST)
