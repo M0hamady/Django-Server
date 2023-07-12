@@ -345,7 +345,13 @@ class Trip(models.Model):
     
     def get_buses(self):
         return [self.bus_trip] + list(self.end_location.stations.filter(buses=self.bus))
-
+    @property
+    def get_start_datetime(self):
+        arrival_datetime = self.arrival_time
+        tz = arrival_datetime.tzinfo
+        start_datetime = timezone.make_aware(datetime.combine(self.start_date, self.start_time), tz)
+        start_datetime += arrival_datetime - datetime.combine(arrival_datetime.astimezone(tz).date(), arrival_datetime.astimezone(tz).time(), tz)
+        return start_datetime
     def is_active(self):
         return False
     def buses_trip (self):

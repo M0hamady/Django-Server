@@ -35,10 +35,11 @@ class TripSerializer(serializers.ModelSerializer):
     start_station_name = serializers.CharField(source='start_location.name')
     end_station_name = serializers.CharField(source='end_location.name')
     stops = TripStopSerializer(many=True, read_only=True)
+    
     class Meta:
         model = Trip
         fields = ('id', 'uuid',
-                  'start_time', 'arrival_time',
+                  'get_start_datetime', 'arrival_time',
                     'bus', 'start_location',
                       'end_location', 'distance', 
                       'duration', 'status', 'end_station_name',
