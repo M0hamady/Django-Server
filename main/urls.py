@@ -24,6 +24,7 @@ from allauth.account.views import LogoutView
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('', include('api.urls'),),
+    path('', include('todo.urls'),),
     path('', include('services.urls'),),
     path('', include('bus_system.urls'),),
     

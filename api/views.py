@@ -2,7 +2,7 @@ from django.shortcuts import get_object_or_404
 from rest_framework import generics, permissions
 
 from .serializers import TodoSerializer, TodoToggleCompleteSerializer, validate_image_file, validate_mobile_number
-from todo.models import Todo
+from todo.models import Task as Todo
 from django.contrib.auth import get_user_model
 from rest_framework.decorators import api_view
 from rest_framework.parsers import JSONParser

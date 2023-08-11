@@ -1,8 +1,7 @@
 import re
 from rest_framework import serializers
 from main import settings
-from todo.models import Todo
-
+from todo.models import Task
 import imghdr
 
 from rest_framework import serializers
@@ -58,12 +57,12 @@ class TodoSerializer(serializers.ModelSerializer):
     created = serializers.ReadOnlyField()
     completed = serializers.ReadOnlyField()
     class Meta:
-        model = Todo
+        model = Task
         fields = ['id','title','memo','created','completed']
 
 
 class TodoToggleCompleteSerializer(serializers.ModelSerializer):
     class Meta:
-        model = Todo
+        model = Task
         fields = ['id'] # why need to show id?
         read_only_fields = ['title','memo','created','completed']

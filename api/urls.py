@@ -1,4 +1,6 @@
 from django.urls import path
+
+from todo.views import calculate_total_duration
 from . import views
 
 urlpatterns = [
@@ -11,6 +13,8 @@ urlpatterns = [
     path('users/', views.CustomUserAPIView.as_view(), name='users'),
     path('rest-auth/google/', views.GoogleLogin.as_view(), name='google_login'),
     path('rest-auth/google/register/', views.GoogleRegister.as_view(), name='google_register'),
+    path('calculate-total-duration/', calculate_total_duration, name='calculate_total_duration'),
+
     # path('reset-password/', views.ResetPasswordView.as_view(), name='reset-password'),
     # path('reset-password-confirm/<str:uidb64>/<str:token>/', views.ResetPasswordConfirmView.as_view(), name='reset-password-confirm'),
 ]

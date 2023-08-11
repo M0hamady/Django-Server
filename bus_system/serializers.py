@@ -38,7 +38,11 @@ class TripSerializer(serializers.ModelSerializer):
     
     class Meta:
         model = Trip
-        fields = ('id', 'uuid',
+        fields = ( 'uuid',
+                  'get_bus_price',
+                  'start_stations',
+                  'end_stations',
+                  'get_available_chairs_count',
                   'get_start_datetime', 'arrival_time',
                     'bus', 'start_location',
                       'end_location', 'distance', 
@@ -128,35 +132,24 @@ from django.conf import settings
 from django.templatetags.static import static
 from django.urls import reverse
 class ReservationSerializer(serializers.ModelSerializer):
-    chair_uuid = serializers.ReadOnlyField(source='chair.uuid')
-    chair_name = serializers.ReadOnlyField(source='chair.name')
-    chair_price = serializers.ReadOnlyField(source='chair.price')
-    payment = PaymentSerializer(read_only=True)
-    payment_fee = serializers.DecimalField(max_digits=10, decimal_places=2, source='payment.payment_fee')
-    commission = serializers.DecimalField(max_digits=10, decimal_places=2, source='payment.commission')
-    total_cost = serializers.SerializerMethodField()
-    offer = serializers.SerializerMethodField()
     reserved_chairs = ReservedChairSerializer(many=True, read_only=True)
     barcode = serializers.SerializerMethodField()
-
+    trip_detail = serializers.SerializerMethodField()
     class Meta:
         model = Reservation
-        fields = ['id','uuid','status','can_cancel', 'chair_uuid', 'chair_name', 'chair_price', 'payment', 'payment_fee', 'commission', 'total_cost', 'offer', 'reserved_chairs','barcode']
+        fields = ['id','uuid','status','can_cancel','trip_detail', 'payment_detail',   'reserved_chairs','barcode']
 
-    def get_total_cost(self, obj):
-        # Calculate the total cost by adding the chair price and payment fee
-        # and commission
-        return obj.chair.price_per_chair + obj.payment.payment_fee + obj.payment.commission
-
-    def get_offer(self, obj):
-        # Add logic to calculate the offer, if any
-        return None
+    
     def validate(self, data):
         # Check if the chair is already reserved
         if data.get('status') == 'reserved' and not self.context['request'].user.is_authenticated:
             raise serializers.ValidationError('Only authenticated users can reserve chairs.')
 
         return data
+
+    def get_trip_detail(self, obj):
+        return obj.client_reservation_chairs
+    
     def get_barcode(self, obj):
         if obj.barcode:
             # Get the full URL for the barcode image using the MEDIA_URL setting

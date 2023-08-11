@@ -48,9 +48,9 @@ class TripAdmin(admin.ModelAdmin):
 
 
 class ReservationAdmin(admin.ModelAdmin):
-    list_display = ('chair', 'user','start_time', 'reserved_at', 'status', 'payment_fee', 'commission', 'total_cost')
+    list_display = ( 'user','start_time', 'reserved_at', 'status', 'payment_fee', 'commission', 'total_cost')
     list_filter = ('status',)
-    search_fields = ('user__username', 'chair__bus__name', 'chair__number')
+    search_fields = ('user__username', 'chair__bus__name', )
 
     def payment_fee(self, obj):
         return obj.payment.payment_fee
@@ -59,7 +59,8 @@ class ReservationAdmin(admin.ModelAdmin):
         return obj.payment.commission
 
     def total_cost(self, obj):
-        return obj.chair.price_per_chair + obj.payment.payment_fee + obj.payment.commission
+        # return obj.chair.price_per_chair + obj.payment.payment_fee + obj.payment.commission
+        return 0
 
 class PaymentAdmin(admin.ModelAdmin):
     list_display = ('reservation', 'value', 'status', 'payment_fee', 'commission')

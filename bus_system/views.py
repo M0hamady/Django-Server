@@ -8,7 +8,7 @@ from django.utils import timezone
 from django.db.models import Sum, F
 from main.settings import BASE_DIR
 from .serializers import AvailableTripSerializer, ChairSerializer, PaymentSerializer, ReservationSerializer
-
+from rest_framework.permissions import IsAuthenticated, IsAdminUser
 from bus_system.models import Bus, Chair, Location, Payment, Reservation, Station, Trip
 from .serializers import LocationSerializer, TripSerializer
 
@@ -114,48 +114,36 @@ class ChairUpdateView(generics.UpdateAPIView):
         chair_uuids = request.data.get('chair_uuids', [])
         if not chair_uuids:
             return Response({'message': 'Please provide UUIDs of the chairs to be reserved'})
-        total_cost = Decimal('0.00')
-        reservations = []
+
+        reservation = Reservation.objects.create(user=request.user)
+        res = []
         for chair_uuid in chair_uuids:
             try:
-                chair = Chair.objects.get(uuid=chair_uuid)
+                chair = self.queryset.get(uuid=chair_uuid)
+
+                if chair.status == 'reserved':
+                    res.append({
+                        'chair_uuid': chair.uuid,
+                        'chair_num': chair.number,
+                        'trip_bus': f'{chair.bus_trip.trip.start_location}-{chair.bus_trip.trip.end_location}',
+                        'trip_date': f'{chair.bus_trip.trip.start_date}',
+                        'bus_num': f'{chair.bus_trip.vehicle_number}',
+                        'status': 'error',
+                        'message': 'The chair is already reserved.'
+                    })
+                    return Response({'reservations': res}, status=404)
+                else:
+                    reservation.add_chairs(chair.uuid)
+                    reserve_serializer = ReservationSerializer(reservation, data=request.data, partial=True)
+                    if reserve_serializer.is_valid():
+                        reserve_serializer.save()
+                        res.append({"reserve_client_detail":reserve_serializer.data})
+                    else:
+                        res.append(reserve_serializer.errors)
             except Chair.DoesNotExist:
-                return Response({'message': 'The chair with UUID {} does not exist.'.format(chair_uuid)})
+                res.append({'message': 'The chair with UUID {} does not exist.'.format(chair_uuid)})
 
-            if chair.status == 'reserved':
-                reservations.append({
-                    'chair_uuid': chair.uuid,
-                    "chair_num" :chair.number,
-                    "trip_bus" :f'{chair.bus_trip.trip.start_location}-{chair.bus_trip.trip.end_location}',
-                    "trip_date" :f'{chair.bus_trip.trip.start_date}',
-                    "bus_num" :f'{chair.bus_trip.vehicle_number}',
-                    'status': 'error',
-                    'message': 'The chair is already reserved.'
-                })
-            else:
-                serializer = self.get_serializer(chair, data={'status': 'reserved'}, partial=True)
-                serializer.is_valid(raise_exception=True)
-                serializer.save()
-
-                reservation = Reservation.objects.create(chair=chair, user=request.user)
-
-                payment_fee = Decimal('0.00')  # Replace with the actual payment fee calculation
-                payment = Payment.objects.create(reservation=reservation, value=reservation.chair.price_per_chair+reservation.payment_fee + reservation.company_commission)
-                total_cost += payment.value
-                reservations.append({
-                    'chair_uuid': chair.uuid,
-                    'status': 'success',
-                    "chair_num" :chair.number,
-                    "chair_bus" :f'{chair.bus_trip.trip.start_location}-{chair.bus_trip.trip.end_location}',
-                    "chair_date" :f'{chair.bus_trip.trip.start_date}',
-                    'reservation': ReservationSerializer(reservation).data,
-                    'payment':PaymentSerializer(payment).data
-                })
-        reservations.append({
-                'total_cost':total_cost
-            })
-        return Response({'reservations': reservations})
-    
+        return Response({'reservations': res})
 class UserPaymentsView(generics.ListAPIView):
     serializer_class = PaymentSerializer
     permission_classes = [permissions.IsAuthenticated]
@@ -214,11 +202,14 @@ class CancelReservationAPIView(APIView):
     def post(self, request, format=None):
         try:
             reservation_uuid = request.data.get('reservation_uuid')
-
             if not reservation_uuid:
                 message = 'Reservation UUID is required. Example request: {"reservation_uuid": "xxxx-xxxx-xxxx-xxxx"}'
                 return Response({'error': message}, status=status.HTTP_400_BAD_REQUEST)
-            reservation = Reservation.objects.get(uuid=reservation_uuid)
+            try:
+                reservation = Reservation.objects.get(uuid=reservation_uuid)
+            except Reservation.DoesNotExist:
+                message = 'we have no reservation with this uuid {"reservation_uuid": "xxxx-xxxx-xxxx-xxxx"}'
+                return Response({'error': message}, status=status.HTTP_400_BAD_REQUEST)
 
             if not reservation:
                 message = f'Reservation with UUID {reservation_uuid} not found'
@@ -237,3 +228,111 @@ class CancelReservationAPIView(APIView):
         except TypeError:
             message = 'Invalid request body. Please provide the reservation UUID in the request body in the following format: {"reservation_uuid": "xxxx-xxxx-xxxx-xxxx"}'
             return Response({'error': message}, status=status.HTTP_400_BAD_REQUEST)
+        
+class DeleteChairFromReservationAPIView(APIView):
+    permission_classes = [IsAuthenticated | IsAdminUser]
+
+    def post(self, request, format=None):
+        try:
+            reservation_uuid = request.data.get('reservation_uuid')
+            chair_uuid = request.data.get('chair_uuid')
+
+            if not reservation_uuid or not chair_uuid:
+                message = 'Reservation UUID and chair number are required. Example request: {"reservation_uuid": "xxxx-xxxx-xxxx-xxxx", "chair_uuid": 42}'
+                return Response({'error': message}, status=status.HTTP_400_BAD_REQUEST)
+
+            try:
+                # print(Reservation.objects.filter(user=request.user).values())
+                reservation = Reservation.objects.get(uuid=reservation_uuid)
+                # print(reservation)
+            except Reservation.DoesNotExist:
+                message = f'Reservation with UUID {reservation_uuid} not found'
+                return Response({'error': message}, status=status.HTTP_404_NOT_FOUND)
+
+            try:
+                chair = Chair.objects.get(uuid=chair_uuid)
+                print(chair)
+            except Chair.DoesNotExist:
+                message = f'Chair with number {chair_uuid} not found'
+                return Response({'error': message}, status=status.HTTP_404_NOT_FOUND)
+            print([chair['uuid'] for chair in reservation.chairs.values()])
+            if chair.uuid not in [chair['uuid'] for chair in reservation.chairs.values()] :
+                message = f'Chair with number {chair_uuid} is not associated with reservation {reservation_uuid}'
+                return Response({'error': message}, status=status.HTTP_400_BAD_REQUEST)
+            try:
+                reservation.chairs.remove(chair) 
+                reservation.save()
+            except:
+                message = f'Chair with number {chair_uuid} has not  been removed from reservation {reservation_uuid} '
+                return Response({'error': message}, status=status.HTTP_400_BAD_REQUEST)
+
+            try:
+                chair.status = 'available'
+                chair.save()
+            except:
+                message = f'Chair status does not changed {chair_uuid} has not  been removed from reservation {reservation_uuid} '
+                return Response({'error': message}, status=status.HTTP_400_BAD_REQUEST)
+
+            serializer = ReservationSerializer(reservation)
+            message = f'Chair with number {chair_uuid} has been removed from reservation {reservation_uuid} and is now available'
+            return Response({'success': message, 'reservation': serializer.data}, status=status.HTTP_200_OK)
+
+        except TypeError:
+            message = 'Invalid request body. Please provide the reservation UUID and chair number in the request body in the following format: {"reservation_uuid": "xxxx-xxxx-xxxx-xxxx", "chair_uuid": 42}'
+            return Response({'error': message}, status=status.HTTP_400_BAD_REQUEST)
+class All_reservation(APIView):
+    def get(self, request,):
+        try:
+            # user = User.objects.get(username=request.user)
+            reservations = Reservation.objects.filter(user=request.user)
+            serializer = ReservationSerializer(reservations, many=True)
+            return Response(serializer.data)
+        except User.DoesNotExist:
+            return Response(status=status.HTTP_404_NOT_FOUND)
+
+
+from.forms import ChooseStationForm, CreateTripForm, ReviewTripForm
+
+def create_trip(request):
+    if request.method == 'POST':
+        form = CreateTripForm(request.POST)
+        if form.is_valid():
+            # print(2)
+            trip = form.save()
+
+            return redirect('choose_station', trip_id=trip.id)
+        if form.errors:
+            print(form.errors)
+    else:
+        form = CreateTripForm()
+    
+    return render(request, 'trip/create_trip.html', {'form': form})
+
+def choose_station(request, trip_id):
+    trip = Trip.objects.get(id=trip_id)
+    if request.method == 'POST':
+        form = ChooseStationForm(request.POST)
+        if form.is_valid():
+            trip.start_station = form.cleaned_data['start_station']
+            trip.end_station = form.cleaned_data['end_station']
+            trip.save()
+            print(1)
+            return redirect('review_trip', trip_id=trip.id)
+    else:
+        form = ChooseStationForm(initial={'start_station': trip.start_station, 'end_station': trip.end_station})
+    return render(request, 'trip/choose_stations.html', {'form': form, 'trip': trip})
+
+def review_trip(request, trip_id):
+    trip = Trip.objects.get(id=trip_id)
+    if request.method == 'POST':
+        form = ReviewTripForm(request.POST, instance=trip)
+        if form.is_valid():
+            form.save()
+            return redirect('trip_detail', trip_id=trip.id)
+    else:
+        form = ReviewTripForm(instance=trip)
+    return render(request, 'trip/review_trip.html', {'form': form, 'trip': trip})
+
+def trip_detail(request, trip_id):
+    trip = Trip.objects.get(id=trip_id)
+    return render(request, 'trip/trip_detail.html', {'trip': trip})

@@ -1,0 +1,80 @@
+<style>
+    body {
+        font-family: Arial, sans-serif;
+        background-color: #f2f2f2;
+    }
+    form {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        margin-top: 20px;
+        background-color: #fff;
+        padding: 20px;
+        border-radius: 5px;
+        box-shadow: 0 0 10px rgba(0, 0, 0, 0.2);
+    }
+    select {
+        margin-bottom: 10px;
+        padding: 5px;
+        border-radius: 5px;
+        border: 1px solid #ccc;
+        font-size: 16px;
+        background-color: #f2f2f2;
+        color: #333;
+    }
+    button {
+        padding: 10px;
+        border-radius: 5px;
+        border: none;
+        background-color: #007bff;
+        color: #fff;
+        font-size: 16px;
+        cursor: pointer;
+    }
+    p {
+        margin-top: 20px;
+        font-size: 20px;
+        font-weight: bold;
+        color: #007bff;
+    }
+    input[type="date"] {
+        padding: 5px;
+        border-radius: 5px;
+        border: 1px solid #ccc;
+        font-size: 16px;
+        background-color: #f2f2f2;
+        color: #333;
+        width: 150px;
+        text-align: center;
+    }
+</style>
+<form method="post" action="{% url 'calculate_total_duration' %}">
+    {% csrf_token %}
+    <select name="company_id">
+        <option value="">Select Company</option>
+        {% for company in companies %}
+            <option value="{{ company.id }}" name="{{ company_id }}">{{ company.name }}</option>
+        {% endfor %}
+    </select>
+    <select name="employee_id">
+        <option value="">Select Employee</option>
+        {% for employee in employees %}
+            <option value="{{ employee.id }}" name="{{ employee_id }}">{{ employee.get_user }}</option>
+        {% endfor %}
+    </select>
+    <!-- Add additional conditions here -->
+    <select name="section_id">
+        <option value="">Select Section</option>
+        {% for section in sections %}
+            <option value="{{ section.id }}" name="{{ section_id }}">{{ section.name }}</option>
+        {% endfor %}
+    </select>
+    <input type="date" name="start_date" placeholder="Start Date">
+    <input type="date" name="end_date" placeholder="End Date">
+    <!-- End of additional conditions -->
+    <button type="submit">Calculate Total Duration</button>
+</form>
+
+{% if task_duration %}
+    <p>Total Duration: {{ task_duration }}</p>
+{% endif %}

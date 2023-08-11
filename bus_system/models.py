@@ -39,12 +39,15 @@ class Location(models.Model):
 
     def __str__(self):
         return self.name
+
     # def clean(self):
     #     # validate uniqueness of vehicle_number
     #     if Bus.objects.exclude(id=self.id).filter(vehicle_number=self.vehicle_number).exists():
     #         raise ValidationError({'vehicle_number': 'Vehicle number must be unique.'})
 
+
 class BusCompany(models.Model):
+    
     name = models.CharField(max_length=100, unique=True)
     email = models.EmailField()
     phone_number = models.CharField(max_length=20)
@@ -172,7 +175,11 @@ class BusTrip(models.Model):
     trip = models.ForeignKey('Trip',on_delete=models.SET_NULL,null=True,blank=True)
     def __str__(self):
         return self.name + self.vehicle_number
-
+    @property
+    def stations(self):
+        stations = Station.objects.filter(buses__name =self.name ).value()
+        # print(stations)
+        return stations
     def pending_chairs(self):
         return self.bus_chairs.filter(status='Pending')
     def save(self, *args, **kwargs):
@@ -254,7 +261,7 @@ class Chair(models.Model):
         return self.bus_trip.uuid
     def is_reserved(self):
         return self.reservations.filter(status='booked').exists()
-
+    
     def payment_status(self):
         latest_reservation = self.reservations.order_by('-reserved_at').first()
         if latest_reservation is None:
@@ -356,12 +363,20 @@ class Trip(models.Model):
         return False
     def buses_trip (self):
         return BusTrip.objects.get(trip = self)
+    @property
+    def get_bus_price(self):
+        brice  =BusTrip.objects.get(trip = self).price_per_chair
+        return brice
     def get_reserved_chairs(self):
         reserved_chairs = self.bus_trip.reserved_chairs_count
         return reserved_chairs
     
     def get_available_chairs(self):
         reserved_chairs = BusTrip.objects.get(trip =self).unreserved_chairs
+
+        return reserved_chairs
+    def get_available_chairs_count(self):
+        reserved_chairs = len(BusTrip.objects.get(trip =self).unreserved_chairs)
 
         return reserved_chairs
     
@@ -391,7 +406,16 @@ class Trip(models.Model):
         super().save(*args, **kwargs)
             
 
-
+    
+    def start_stations(self):
+        stations = Station.objects.filter(location=self.start_location).values()
+        # print(stations)
+        return stations
+    def end_stations(self):
+        stations = Station.objects.filter(location=self.end_location).values()
+        # print(stations)
+        return stations
+    
     @classmethod
     def get_available_trips(cls, start_location, end_location, travel_date):
         now = date_time.datetime.now().time()
@@ -427,6 +451,7 @@ def add_hours(date_str,time_str, hours_to_add):
     # 
     return f'{h:02d}:{m:02d}:{s:02d}'
 def create_trip(start_date, start_time, arrival_time, day_of_week, bus, start_location, end_location, duration):
+    
     trip = Trip(
         start_date=start_date,
         start_time=start_time,
@@ -437,8 +462,8 @@ def create_trip(start_date, start_time, arrival_time, day_of_week, bus, start_lo
         end_location=end_location,
         duration=duration,
     )
-    
     trip.save()
+    print(f"NEW TRIP CREATED FROM {trip.start_location} to {trip.end_location} at {trip.start_date} ")
     return trip
 class Trips_data(models.Model):
     start_date = models.DateField()
@@ -463,9 +488,9 @@ class Trips_data(models.Model):
         return 'Trip: from: ' +f'{self.start_date}'+f' to:{self.end_date}'
     def generate_trips(self):
         trip_date = self.start_date 
-       
         while trip_date <= self.end_date :
             if str(trip_date.weekday()) in self.day_of_week :
+                # print('start creating trip')
                 trip_start_time = self.at_time
                 trip_arrival_time =add_hours(trip_date,str(trip_start_time), self.duration_of_trip) 
                 trip_duration = self.duration_of_trip
@@ -484,19 +509,14 @@ class TripStop(models.Model):
     trip = models.ForeignKey(Trip, on_delete=models.CASCADE)
     station = models.ForeignKey(Station, on_delete=models.CASCADE)
     arrival_time = models.DateTimeField()
-    departure_time = models.TimeField()
-    duration = models.DurationField()
     uuid = models.UUIDField(default=uuid.uuid4, editable=False, unique=True)
     def save(self, *args, **kwargs):
         if not self.uuid:
             self.uuid = uuid.uuid4()
-        super().save(*args, **kwargs)
-    def clean(self):
-        pass
-        # if self.arrival_time >= self.departure_time:
-        #     raise ValidationError('Arrival time must be before departure time.')
-        # if self.duration != self.departure_time - self.arrival_time:
-        #     raise ValidationError('Duration must be equal to the difference between arrival and departure times.')
+        super().save(*args, **kwargs)   
+
+
+
 class PaymentMethod(models.Model):
     name = models.CharField(max_length=100, unique=True)
     payment_fee = models.DecimalField(max_digits=10, decimal_places=2, default=Decimal('0.00'))
@@ -510,9 +530,9 @@ class Reservation(models.Model):
         ('Cancelled', 'Cancelled'),
         ('Expired', 'Expired')
     ]
-    start_time = models.DateTimeField(null=True,blank=True)
+    start_time = models.DateTimeField(null=True,blank=True,auto_now=True)
 
-    chair = models.ForeignKey(Chair, on_delete=models.CASCADE, related_name='reservations')
+    chairs = models.ManyToManyField(Chair, related_name='reservations')
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='reservations')
     reserved_at = models.DateTimeField(auto_now_add=True)
     status = models.CharField(max_length=10, choices=STATUS_CHOICES, default='Reserved')
@@ -522,17 +542,88 @@ class Reservation(models.Model):
     barcode = models.ImageField(upload_to='./media/barcodes/', blank=True, null=True)
     # def __str__(self):
     #     return f"{self.chair} - {self.status}"
-    # @property
+    @property
+    def totalCost(self):
+        total_cost = Decimal("0.0")
+        for chair in self.chairs.all().values():
+            total_cost = total_cost + chair['price_per_chair']
+        return total_cost
+    
+    
+        
+    def add_chairs(self, uuid):
+        try:
+            chair = Chair.objects.get(uuid=uuid)
+            chair.status = "reserved"
+            chair.save()
+            self.chairs.add(chair)
+            return {'message': 'Chair added to reservation successfully.'}
+        except Chair.DoesNotExist:
+            return {'message': f'Cannot find chair with UUID {uuid}.'}
+
+    @property
+    def client_reservation_chairs(self):
+        try:
+            # print(4,self.chairs.all())
+            
+            trip = BusTrip.objects.get(id = self.chairs.all().values()[0]['bus_trip_id']).trip
+            print(BusTrip.objects.get(id = self.chairs.all().values()[0]['bus_trip_id']).trip.start_location)
+            trip_start_station =trip.start_location.name
+            trip_end_station =trip.end_location.name
+            date =trip.get_start_datetime
+            uuid =trip.uuid
+            chairs = []
+            
+            for chair in self.chairs.all().values():
+                # print(chair["uuid"],chair["number"])
+                chairs.append(
+                    {"uuid":chair["uuid"],"chair_num":chair["number"],"chair_price":chair["price_per_chair"]}
+                )
+            res = {
+                   
+                "start_location":trip_start_station,
+                "arrival_location":trip_end_station,
+                "start_datetime":date,
+                "trip_uuid":uuid
+            
+            ,"chairs":chairs}
+            return res
+
+        except:return {"message":"we can not find any chairs for you in this reservation."}
     
     @property
+    def payment_detail (self):
+        try:
+            res = Payment.objects.get(reservation =self)
+            res = {
+                "value": res.value,
+                "status": res.status,
+                "uuid": res.uuid,
+                "payment_fee": res.payment_fee,
+                "commission": res.commission,
+                "reservation": res.reservation.uuid
+            }
+        except:
+            res = {
+                "value": 0,
+                "status": 'pending',
+                "uuid": 'res.uuid',
+                "payment_fee":0,
+                "commission": 0,
+                "reservation": 'res.reservation.uuid'
+            }
+        return res
+    @property
     def company_commission(self):
-        print(PaymentMethod.objects.first().payment_fee)
+        # print(PaymentMethod.objects.first().payment_fee)
         return BusCompany.objects.get(id=1).commission
+    # @property
+    
     def save(self, *args, **kwargs):
         # Combine start_date and start_time into a single datetime object
-        start_datetime = datetime.combine(self.chair.bus_trip.trip.start_date, self.chair.bus_trip.trip.start_time)
+        # start_datetime = datetime.combine(self.chairs.first().bus_trip.trip.start_date, self.chair.bus_trip.trip.start_time)
         # Set reservation start time to be the combined datetime object + the chair's start time
-        self.start_time = start_datetime 
+        # self.start_time = start_datetime 
         if not self.pk:
             # Set the default payment method if no payment method is specified
             if not self.payment_method:
@@ -546,43 +637,63 @@ class Reservation(models.Model):
                 os.makedirs(os.path.dirname(barcode_full_path), exist_ok=True)
                 ean.save(barcode_full_path)
                 self.barcode.name = barcode_path
-
         super().save(*args, **kwargs)
+        # print(sum([chairPrice["price_per_chair"] for chairPrice in self.chairs.all().values() ]) + self.payment_fee,5555577)
+        try:
+            payment_value  = Payment.objects.get(reservation= self)
+            print(payment_value)
+            payment_value.value = sum([chairPrice["price_per_chair"] for chairPrice in self.chairs.all().values() ]) + self.payment_fee
+            payment_value.save()
+        except: 
+            payment_value = Payment(
+                reservation = self,
+                value = sum([chairPrice["price_per_chair"] for chairPrice in self.chairs.all().values() ]) + self.payment_fee
+            )
+            payment_value.save()
+            
     def can_cancel(self):
         now = timezone.now()
         if self.start_time:
             cancellation_deadline = self.start_time - timedelta.Timedelta(hours=4)
             try:
-                print(now-timedelta.Timedelta(hours = 4) <= self.start_time,self.status == 'Reserved')
+                # print(now-timedelta.Timedelta(hours = 4) <= self.start_time,self.status == 'Reserved')
                 if now-timedelta.Timedelta(hours = 4) <= self.start_time and self.status == 'Reserved':
-                    print(1)
-                    return True, ''
+                    # print(1)
+                    return {"status":True, 'message':"success"}
                 else:
-                    return False, f'Reservations cannot be cancelled less than 4 hours before the scheduled start time. The cancellation deadline for this reservation is {cancellation_deadline}.'
-            except:return False, f'Reservations cancel can not be display while creation,  check for it after creation'
+                    return {"status":False, 'message':f'Reservations cannot be cancelled less than 4 hours before the scheduled start time. The cancellation deadline for this reservation is {cancellation_deadline}.'}
+            except:return {"status":False, 'message': f'Reservations cancel can not be display while creation,  check for it after creation'}
         else:
-            return False, f'Reservations cannot be cancelled with no  scheduled start time. try to create new reservation to insure of err.'
+            return {"status":False, 'message':  f'Reservations cannot be cancelled with no  scheduled start time. try to create new reservation to insure of err.'}
             
     def delete(self, *args, **kwargs):
-        # delete the payment when the reservation is cancelled
-        self.chair.status = 'available'
-        self.chair.save()
-        if self.status == 'Cancelled' and hasattr(self, 'payment'):
-            self.payment.delete()
+    # delete the payment when the reservation is cancelled
+        for chair in self.chairs.all().values():
+            updated_chair = Chair.objects.get(id = chair['id'])
+            updated_chair.status ='available' 
+            updated_chair.save()
+        try:
+            to_delete = Payment.objects.get(reservation=self)
+            to_delete.delete()
+        except Reservation.DoesNotExist:
+            raise ValidationError('Reservation matching query does not exist.')
 
         # update the corresponding chair's status
         
 
         super().delete(*args, **kwargs)
-@receiver(post_save, sender=Reservation)
-def update_chair_status(sender, instance, **kwargs):
-    # update the corresponding chair's status when the reservation status is changed
-    if instance.status == 'Reserved':
-        instance.chair.status = 'reserved'
-        instance.chair.save()
-    elif instance.status == 'Cancelled':
-        instance.chair.status = 'available'
-        instance.chair.save()
+# @receiver(post_save, sender=Reservation)
+# def update_chair_status(sender, instance, **kwargs):
+#     # update the corresponding chair's status when the reservation status is changed
+#     if instance.status == 'Reserved' and  instance.chairs != None:
+        # print(instance.chairs ,instance.chairs != None)
+#         for chair in instance.chairs:
+#             chair.status = 'reserved'
+#             chair.save()
+#     elif instance.status == 'Cancelled' and  instance.chairs != None:
+#         for chair in instance.chairs:
+#             chair.status = 'available'
+#             chair.save()
 
     
     # def __str__(self):
@@ -594,7 +705,7 @@ class Payment(models.Model):
     ]
 
     reservation = models.OneToOneField(Reservation, on_delete=models.CASCADE, related_name='payment')
-    value = models.DecimalField(max_digits=8, decimal_places=2)
+    value = models.DecimalField(max_digits=8, decimal_places=2,null=True)
     status = models.CharField(max_length=10, choices=STATUS_CHOICES, default='Pending')
     uuid = models.UUIDField(default=uuid.uuid4, editable=False, unique=True)
     payment_fee = models.DecimalField(max_digits=10, decimal_places=2, default=Decimal('0.00'))

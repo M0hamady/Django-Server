@@ -1,0 +1,38 @@
+{% extends 'base.html' %}
+
+{% block content %}
+
+<form method="post"class='form_main'>
+    {% csrf_token %}
+
+  <h1 class='heading'>Create Trip</h1>
+  
+  <fieldset>
+    <legend>Schedule Information</legend>
+    {{ form.start_date.label_tag }} {{ form.start_date }}
+    {{ form.at_time.label_tag }} {{ form.at_time }}
+    {{ form.end_date.label_tag }} {{ form.end_date }}
+    {{ form.day_of_week.label_tag }} {{ form.day_of_week }}
+    {{ form.bus.label_tag }} {{ form.bus }}
+    {{ form.from_location.label_tag }} {{ form.from_location }}
+    {{ form.to_location.label_tag }} {{ form.to_location }}
+    {{ form.duration_of_trip.label_tag }} {{ form.duration_of_trip }}
+  </fieldset>
+  <button type="submit">Submit</button>
+
+  </form>
+  {% if form.errors %}
+    <ul>
+        {% for field, errors in form.errors.items %}
+            <li>{{ field }}: {{ errors}}</li>
+
+        {% endfor %}
+    </ul>
+
+{% endif %}
+<script>
+    const inputElement = document.querySelector('input[name="start_date"]');
+  const value = inputElement.getAttribute('value');
+  console.log( value);
+</script>
+{% endblock %}
