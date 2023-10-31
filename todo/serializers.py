@@ -13,7 +13,7 @@ class ProjectRoadMapSerializer(serializers.ModelSerializer):
     sprints = serializers.SerializerMethodField()
     class Meta:
         model = RoadMapItem
-        fields = ['name','description','get_percentage','start_date','end_date','sprints',]
+        fields = ['name','description','get_percentage','sprint','start_date','end_date','sprints',]
 
     def get_start_date(self,obj):
           try:
@@ -25,7 +25,7 @@ class ProjectRoadMapSerializer(serializers.ModelSerializer):
           except:return None
     def get_sprints(self,obj):
           #name -date -uuid
-          return ProjectRoadMapSprintSerializer(obj.sprint,many= True).data
+          return ProjectRoadMapSprintSerializer(data = obj.sprint.all(),many= True).data
 class ProjectDetailSerializer(serializers.ModelSerializer):
     start_date = serializers.SerializerMethodField()
     end_date = serializers.SerializerMethodField()
@@ -54,14 +54,23 @@ class ProjectDetailSerializer(serializers.ModelSerializer):
 class ProjectSerializer(serializers.ModelSerializer):
     start_date = serializers.SerializerMethodField()
     end_date = serializers.SerializerMethodField()
+    # road_map = serializers.SerializerMethodField()
+    # road map 
+    # time line
     class Meta:
         model = Project
-        fields = ['name','uuid','start_date','end_date']
+        fields = ['name','uuid','start_date','end_date','get_percentage',"road_map"]
         
     def get_start_date(self,obj):
           try:
             roadMapITem =  RoadMapItem.objects.filter(project = obj.id).first()
-            return roadMapITem.sprint.all().order_by('start_date').first().start_date
+            serialize = ProjectRoadMapSerializer(many= True,data=roadMapITem ) 
+            return serialize.data
+          except:return None
+    def get_road_map(self,obj):
+          try:
+            roadMapITem =  RoadMapItem.objects.filter(project = obj.id).first()
+            return roadMapITem.sprint.all().order_by('start_date').values()
           except:return None
     def get_end_date(self,obj):
           try:
@@ -174,7 +183,7 @@ class TaskSerializer(serializers.ModelSerializer):
 
         return res
     def get_comments(self, obj):
-        return TaskComment.objects.filter(task = obj ).values()
+        return TaskComment.objects.filter(task = obj ).values("employee__name",'feedback_text',"uuid")
     def get_company(self, obj):
         return obj.company.name
         

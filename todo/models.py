@@ -80,6 +80,56 @@ class Project(models.Model):
     def __str__(self):
         return self.name
     @property
+    def road_map(self):
+        # months
+        # weeks
+        # days
+        # actions
+        all_items = RoadMapItem.objects.filter(project=self).values()
+        res = []
+        for item in  all_items:
+            sprints = RoadMapItem.objects.get(id = item['id']).sprint.values()
+            new_sprints = []
+            for sprint in sprints:
+                new_start_date = datetime.datetime.strptime(str(sprint['start_date']), "%Y-%m-%d")
+                sprint['week_number_in_month'] =(new_start_date.day - 1) // 7 + 1
+                sprint['week_number_in_year'] =new_start_date.isocalendar()[1]
+                sprint['day_name'] =new_start_date.strftime("%A")
+                new_tasks = []
+                tasks = Task.objects.filter(sprints = sprint['id']).values('id')
+                for task in tasks:
+                    task = Task.objects.get(id= task['id'])
+                    FeedBacks = TaskFeedback.objects.filter(task=task).values("uuid","feedback_text","created_at")
+                    new_task = {
+                        "title":task.title,
+                        "descriptions":task.memo,
+                        "percentage":task.calculate_task_completion_percentage(),
+                        "FeedBacks":FeedBacks,
+                        "uuid":task.uuid,
+                    }
+                    new_tasks.append(new_task)
+                meetings= Meeting.objects.filter(sprint=sprint['id']).values('start_time','end_time','meeting_link')
+                new_meetings = []
+                for meeting in meetings:
+                    date = meeting["start_time"]
+                    # start_time = datetime.datetime.strptime(str(date), "%Y-%m-%dT%H:%M:%S")
+
+                    time = date.strftime("%H:%M:%S")
+                    day_name = date.strftime("%A")
+                    day_date = date.strftime("%Y-%m-%d")
+                    meeting['time'] =time
+                    meeting['day_name'] =day_name
+                    meeting['day_date'] =day_date
+                    new_meetings.append(meeting)
+                sprint['tasks'] = new_tasks
+                sprint['meetings'] = meetings
+                new_sprints.append(sprint)
+            item["sprints"] = new_sprints
+            res.append(item)
+
+        return res
+
+    @property
     def get_percentage(self):
         total_conditions = RoadMapItem.objects.filter(project=self).all().count()
         completed_conditions  = 0
@@ -93,7 +143,10 @@ class Project(models.Model):
 
     # def is_finished(self):
     #     return self.sprints.filter(task__is_finished=False).count() == 0
-
+    def save(self, *args, **kwargs):
+        if not self.uuid:
+            self.uuid = uuid.uuid4()
+        super().save(*args, **kwargs)
 class RoadMapItem(models.Model):
     name = models.CharField( max_length=50,null=True,blank=True)
     description = models.TextField( null=True,blank=True)
@@ -197,7 +250,7 @@ class Employee(models.Model):
         return Task.objects.filter(assigned_to=self, completed=True)
 
     def get_all_non_completed_tasks(self):
-        return Task.objects.filter(assigned_to=self, completed=False) 
+        return Task.objects.filter(assigned_to=self, completed=True) 
     # @property
     # def count_completed_tasks_hours(self):
     #     hours = Task.objects.filter(completed =True,)
@@ -450,6 +503,7 @@ class TaskFeedback(models.Model):
     # ++++++++++++++ seconed update
 class Member(models.Model):
     name = models.CharField(max_length=100)
+    uuid = models.UUIDField(default=uuid.uuid4, editable=False, unique=False,null=True,blank=True)
 
     def __str__(self):
         return self.name

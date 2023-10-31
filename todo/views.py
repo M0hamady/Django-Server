@@ -156,13 +156,13 @@ class CheckKey(APIView):
             employee = Employee.objects.get(uuid = request.data.get('uuid') )
             is_employee  = True
             is_active = employee.is_active
-        except Employee.DoesNotExist:
+        except :
             pass
         try:
             company = Company.objects.get(uuid = request.data.get('uuid') )
             is_company  = True
             is_active = company.is_active
-        except Company.DoesNotExist:
+        except :
             pass
         context =  {
             'is_employee' : is_employee,
@@ -188,7 +188,6 @@ class Employee_data(APIView):
             'team' : employee.section.name,
             'team_shortcut' : employee.section.shortcut,
             'is_active' :employee.is_active,
-            'tasks_count' :employee.get_all_tasks().count(),
             'tasks_count' :employee.get_all_tasks().count(),
             'completed_tasks_count' :employee.get_all_non_completed_tasks().count(),
             'companies_worked_with_count' :len(employee.get_all_companies()),
@@ -266,12 +265,8 @@ class TaskDurationAPIView(APIView):
                 "task": TaskSerializer(task).data
             }, status=status.HTTP_200_OK)
         elif 'start_time'  not in request.data and not ongoing_duration:
-            duration = Duration.objects.create(task=task, start_time=current_time)
-            duration.assigned_to.add(employee)
             return Response({
-                "message": "New duration started successfully",
-                "duration":duration.uuid,
-                "duration_start_time":duration.start_time,
+                "message": "you have no duration",
                 "task": TaskSerializer(task).data
             }, status=status.HTTP_200_OK)
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++
