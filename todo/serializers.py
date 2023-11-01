@@ -183,7 +183,7 @@ class TaskSerializer(serializers.ModelSerializer):
 
         return res
     def get_comments(self, obj):
-        return TaskComment.objects.filter(task = obj ).values("employee__name",'feedback_text',"uuid")
+        return TaskComment.objects.filter(task = obj ).values("employee__user__username",'feedback_text',"uuid")
     def get_company(self, obj):
         return obj.company.name
         
